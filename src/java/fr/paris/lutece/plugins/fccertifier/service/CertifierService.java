@@ -169,6 +169,7 @@ public class CertifierService implements Serializable
 	
 	        IdentityDto identity = new IdentityDto( );
 	        identity.setCustomerId(identityStore.getConnectionId());
+	        identity.setLastUpdateDate(identityStore.getLastUpdateDate());
 	
 	        List<AttributeDto> listCertifiedAttribute = new ArrayList<>();
 	                
@@ -193,16 +194,17 @@ public class CertifierService implements Serializable
 	        author.setType( AuthorType.application );
 	       
 	        identityChangeRequest.setIdentity( identity );
+	       
 	        
 	        try
 	        {   
 	        	
-	            final IdentityChangeResponse response= identityService.updateIdentity( identityStore.getCustomerId(), identityChangeRequest, CLIENT_CODE, author );
-	            if (response==null || ! ResponseStatusType.SUCCESS.equals( response.getStatus().getType( ) )  )
+	            final IdentityChangeResponse response= identityService.updateIdentity( identityStore.getCustomerId(), identityChangeRequest, CLIENT_CODE,author);
+	            if (response == null || !ResponseStatusType.OK.equals(response.getStatus().getType())  )
 	        	  {
 	        		  AppLogService.error( "Error when  updating the identity for connectionId {} the idantity change status is {} ", identity.getConnectionId( ), response!=null? response.getStatus():"");
 	        		  
-	        		  throw new IdentityStoreException(response!=null ? response.getStatus().getMessage( ) : "");
+	        		  throw new IdentityStoreException(response!=null ? response.getStatus().getType().name():"");
 	        	  }
 	            
 	        } catch ( AppException | IdentityStoreException e )
@@ -237,11 +239,13 @@ public class CertifierService implements Serializable
         IdentityService identityService = SpringContextService.getBean( BEAN_IDENTITYSTORE_SERVICE );
 
         IdentitySearchResponse identitySearchResponse;
+        RequestAuthor  requestAuthor = new RequestAuthor(  );
+         requestAuthor.setName( CLIENT_CODE );
+        requestAuthor.setType( AuthorType.owner );
+        
         try
         {
-            RequestAuthor author = new RequestAuthor( );
-            author.setName( CLIENT_CODE );
-            author.setType( AuthorType.application );
+            identitySearchResponse = identityService.getIdentityByConnectionId( strConnectionId, CLIENT_CODE , requestAuthor );
             
             identitySearchResponse = identityService.getIdentityByConnectionId( strConnectionId, CLIENT_CODE, author );
             
@@ -382,10 +386,10 @@ public class CertifierService implements Serializable
     	  
     	if(!StringUtils.isEmpty(strValue))
     	{
-    	    AttributeDto certifiedAttribute = new AttributeDto( );        
+    		AttributeDto certifiedAttribute = new AttributeDto( );        
 	        certifiedAttribute.setKey( strKey );
-	        certifiedAttribute.setValue( strValue );
-	        certifiedAttribute.setCertifier( bDefault?CERTIFIER_CODE_DEFAULT:CERTIFIER_CODE  );
+	        certifiedAttribute.setValue( strValue!=null? strValue:"");
+	        certifiedAttribute.setCertifier( bDefault?CERTIFIER_CODE_DEFAULT:CERTIFIER_CODE );
 	        certifiedAttribute.setCertificationDate( certDate );
 	        
 	        listCertifiedAttribute.add(certifiedAttribute);
