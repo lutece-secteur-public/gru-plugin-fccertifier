@@ -36,7 +36,10 @@ package fr.paris.lutece.plugins.fccertifier.service;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,6 +51,7 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import fr.paris.lutece.plugins.fccertifier.business.FcIdentity;
+import fr.paris.lutece.plugins.identityquality.v3.web.service.IdentityQualityService;
 import fr.paris.lutece.plugins.identitystore.v3.web.rs.dto.common.AttributeDto;
 import fr.paris.lutece.plugins.identitystore.v3.web.rs.dto.common.AuthorType;
 import fr.paris.lutece.plugins.identitystore.v3.web.rs.dto.common.IdentityDto;
@@ -55,6 +59,8 @@ import fr.paris.lutece.plugins.identitystore.v3.web.rs.dto.common.RequestAuthor;
 import fr.paris.lutece.plugins.identitystore.v3.web.rs.dto.common.ResponseStatusType;
 import fr.paris.lutece.plugins.identitystore.v3.web.rs.dto.crud.IdentityChangeRequest;
 import fr.paris.lutece.plugins.identitystore.v3.web.rs.dto.crud.IdentityChangeResponse;
+import fr.paris.lutece.plugins.identitystore.v3.web.rs.dto.search.DuplicateSearchRequest;
+import fr.paris.lutece.plugins.identitystore.v3.web.rs.dto.search.DuplicateSearchResponse;
 import fr.paris.lutece.plugins.identitystore.v3.web.rs.dto.search.IdentitySearchResponse;
 import fr.paris.lutece.plugins.identitystore.v3.web.service.IdentityService;
 import fr.paris.lutece.plugins.identitystore.web.exception.IdentityStoreException;
@@ -88,9 +94,13 @@ public class CertifierService implements Serializable
     private static final int EXPIRES_DELAY = AppPropertiesService.getPropertyInt( PROPERTY_EXPIRES_DELAY, DEFAULT_EXPIRES_DELAY );
     private static final String BEAN_IDENTITYSTORE_SERVICE = "fccertifier.identitystore.service";
     private static final String PROPERTY_IDENTITY_SERVICE_CLIENT_CODE = "fccertifier.identitystore.client.code";
-    private static final String CERTIFIER_CODE = "FC";
+    private static final String CERTIFIER_CODE = "fccertifier";
     private static final String CERTIFIER_CODE_DEFAULT = "DEC";
-    
+    private static final String BEAN_IDENTITY_QUALITY_SERVICE = "fccertifier.identityQualityService";
+    private static final boolean PROPERTY_SUSPICIOUS_IDENTITY_ACTIVATION_INDICATEUR = AppPropertiesService.getPropertyBoolean( "mydashboard.identity.suspicious.activation_indicator", false );
+    private static final String PROPERTY_SUSPICIOUS_LIST_RULE_STRIC = AppPropertiesService.getProperty( "mydashboard.identity.suspicious.identity.list_code_rule.strict", "RG_GEN_StrictDoublon_01" );
+    private static final String PROPERTY_SUSPICIOUS_LIST_RULE_NOT_STRIC = AppPropertiesService.getProperty( "mydashboard.identity.suspicious.identity.list_code_rule.not_strict",
+            "RG_GEN_SuspectDoublon_09" );   
     private static final String CLIENT_CODE = AppPropertiesService.getProperty( PROPERTY_IDENTITY_SERVICE_CLIENT_CODE );
 
     private static Map<String, ValidationInfos> _mapValidationInfos = new ConcurrentHashMap<String, ValidationInfos>( );
@@ -246,9 +256,7 @@ public class CertifierService implements Serializable
         try
         {
             identitySearchResponse = identityService.getIdentityByConnectionId( strConnectionId, CLIENT_CODE , requestAuthor );
-            
-            identitySearchResponse = identityService.getIdentityByConnectionId( strConnectionId, CLIENT_CODE, author );
-            
+                        
             if(  identitySearchResponse != null && !CollectionUtils.isEmpty( identitySearchResponse.getIdentities( ) ) )
             {
                return identitySearchResponse.getIdentities( ).get( 0 );
@@ -397,6 +405,136 @@ public class CertifierService implements Serializable
      
      
 	        
+    }
+    
+    /**
+     * Get suspicious identities API
+     * @param userInfo
+     * @param listRules
+     * @return DuplicateSearchResponse
+     */
+    private static DuplicateSearchResponse getSuspiciousIdentitiesAPI( FcIdentity fcIdentity, List<String> listRules )
+    {     
+        if( PROPERTY_SUSPICIOUS_IDENTITY_ACTIVATION_INDICATEUR )
+        {
+            IdentityQualityService identityQualityService = SpringContextService.getBean( BEAN_IDENTITY_QUALITY_SERVICE );
+            
+            RequestAuthor author = new RequestAuthor( );
+            author.setName( CLIENT_CODE );
+            author.setType( AuthorType.application );
+            
+            DuplicateSearchRequest duplicateSearchRequest = new DuplicateSearchRequest( );
+            duplicateSearchRequest.setRuleCodes( listRules );
+                    
+            initAttributeSuspiciousSearchRequest( duplicateSearchRequest, fcIdentity );
+                   
+            try
+            {
+                return identityQualityService.searchDuplicates( duplicateSearchRequest, CLIENT_CODE, author );           
+            }
+            catch ( IdentityStoreException | AppException ex )
+            {
+                AppLogService.info( "Error getting Search duplicate identities ", ex );
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Gets suspicious identities by filter
+     * @param dashboardIdentity
+     * @param listRules
+     * @return list of suspicious identities
+     */
+    public static List<IdentityDto> getSuspiciousIdentities ( FcIdentity fcIdentity, List<String> listRules )
+    {        
+        DuplicateSearchResponse suspiciousSearchResponse = getSuspiciousIdentitiesAPI( fcIdentity, listRules );
+          
+        if ( suspiciousSearchResponse != null && suspiciousSearchResponse.getStatus( ).getType( ).equals( ResponseStatusType.OK ) &&
+                CollectionUtils.isNotEmpty( suspiciousSearchResponse.getIdentities( ) ) )
+        {
+            return suspiciousSearchResponse.getIdentities( );
+        }
+        
+        return Collections.emptyList();
+    }
+    
+    /**
+     * Init attribute for suspicious search request
+     * @param duplicateSearchRequest
+     * @param fcIdentity
+     */
+    private static void initAttributeSuspiciousSearchRequest ( DuplicateSearchRequest duplicateSearchRequest, FcIdentity fcIdentity )
+    {
+        Map<String, String> mapAttributes = new HashMap<>( );
+        
+        if( StringUtils.isNotEmpty( fcIdentity.getPreferredUsername( ) ) )
+        {
+            mapAttributes.put( "preferred_username", fcIdentity.getPreferredUsername( ) );
+        }
+        
+        if( StringUtils.isNotEmpty( fcIdentity.getIdsGender( ) ) )
+        {
+            mapAttributes.put( "gender", fcIdentity.getIdsGender( ) );
+        }
+        
+        if( StringUtils.isNotEmpty( fcIdentity.getIdsBirthDate( ) ) )
+        {
+            mapAttributes.put( "birthdate", fcIdentity.getIdsBirthDate( ) );
+        }
+        
+        if( StringUtils.isNotEmpty( fcIdentity.getBirthCountry( ) ) )
+        {
+            mapAttributes.put( "birthcountry_code", fcIdentity.getBirthCountry( ) );
+        }
+        
+        if( StringUtils.isNotEmpty( fcIdentity.getBirthPlace( ) ) )
+        {
+            mapAttributes.put( "birthplace_code", fcIdentity.getBirthPlace( ) );
+        }
+        
+        if( StringUtils.isNotEmpty( fcIdentity.getFamilyName( ) ) )
+        {
+            mapAttributes.put( "family_name", fcIdentity.getFamilyName( ) );
+        }
+        
+        if( StringUtils.isNotEmpty( fcIdentity.getGivenName( ) ) )
+        {
+            mapAttributes.put( "first_name", fcIdentity.getGivenName( ) );
+        }
+       
+        duplicateSearchRequest.setAttributes( mapAttributes );
+    }
+    
+    /**
+     * Return true if exist an strict suscpicious identities
+     * @param fcIdentity
+     * @param strConnectionId
+     * @return
+     */
+    public static boolean existStrictSuspiciousIdentities( FcIdentity fcIdentity, String strConnectionId )
+    {
+        List<String> listAllRules = new ArrayList< >( );
+        List<String> listStrictRules = Arrays.asList( PROPERTY_SUSPICIOUS_LIST_RULE_STRIC.split( ";" ) );
+        listAllRules.addAll( listStrictRules );
+        listAllRules.addAll(  Arrays.asList( PROPERTY_SUSPICIOUS_LIST_RULE_NOT_STRIC.split( ";" )) );
+        
+        DuplicateSearchResponse suspiciousSearchResponse =  getSuspiciousIdentitiesAPI( fcIdentity, listAllRules ) ;
+        
+        if( suspiciousSearchResponse != null && suspiciousSearchResponse.getStatus( ).getType( ).equals( ResponseStatusType.OK ) &&
+                CollectionUtils.isNotEmpty( suspiciousSearchResponse.getIdentities( ) ) && StringUtils.isNotEmpty( strConnectionId ) )
+        {
+            for( IdentityDto identity : suspiciousSearchResponse.getIdentities( ) )
+            {
+                if( listStrictRules.contains( identity.getDuplicateDefinition( ).getDuplicateSuspicion( ).getDuplicateRuleCode( ) ) 
+                        && (StringUtils.isEmpty( identity.getConnectionId( ) ) || !strConnectionId.equals( identity.getConnectionId( ) )) )
+                {
+                    return true;
+                }
+            }                
+            return false;
+        }
+        return false;
     }
   
 }
