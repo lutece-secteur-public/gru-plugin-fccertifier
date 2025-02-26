@@ -73,13 +73,15 @@ public class FranceConnectCertifierApp extends MVCApplication
     public static final String VIEW_VALIDATION_OK = "validationOK";
     public static final String VIEW_VALIDATE_FC_DATA = "validate";
     public static final String VIEW_RECERTIFY_OR_DELETE = "recertificyOrDeleteCertification";
+    public static final String VIEW_HANDLE_ERROR = "handleError";
     
     //Templates
     private static final String TEMPLATE_HOME = "skin/plugins/identitystore/modules/fccertifier/home.html";
     private static final String TEMPLATE_VALIDATION_OK = "skin/plugins/identitystore/modules/fccertifier/validation_ok.html";
     private static final String TEMPLATE_VALIDATE_DATA = "skin/plugins/identitystore/modules/fccertifier/validate_data.html";
     private static final String TEMPLATE_RECERTIFICATE_OR_DELETE_CERTIFICATION = "skin/plugins/identitystore/modules/fccertifier/recertify_or_delete_certification.html";    
-    
+    private static final String TEMPLATE_HANDLE_ERROR = "skin/plugins/identitystore/modules/fccertifier/handle_error.html";    
+
     //Actions
     private static final String ACTION_FETCH_FC_DATA = "fetch";
     private static final String ACTION_CERTIFY = "certify";
@@ -89,11 +91,16 @@ public class FranceConnectCertifierApp extends MVCApplication
     private static final String MARK_IDENTITY = "identity";
     private static final String MARK_JSP_MYDASHBOARD = "jsp_mydashboard";
     private static final String MARK_SERVICE_URL = "service_url";    
+    private static final String MARK_USER = "user"; 
+    private static final String MARK_ERROR = "error"; 
+
     //Properties
     private static final String PROPERTY_JSP_MYDASHBOARD = AppPropertiesService.getProperty( "fccertifier.mydashboard.identity.xpage" );
     private static final String PROPERTY_SUSPICIOUS_REDIRECT_PAGE = AppPropertiesService.getProperty( "fccertifier.identity.suspicious.france_connect.redirect.page" );
     private static final String PROPERTY_SUSPICIOUS_REDIRECT_VIEW = AppPropertiesService.getProperty( "fccertifier.identity.suspicious.france_connect.redirect.view" );
     
+    //Paramters
+    private static final String PARAMETER_ERROR = "error";
     private static final String DATACLIENT_USER = "user";
     private static final String URL_SUSPICIOUS_IDENTITY = "Portal.jsp?page=" + PROPERTY_SUSPICIOUS_REDIRECT_PAGE + "&view=" + PROPERTY_SUSPICIOUS_REDIRECT_VIEW;
     private final CertifierService _certifierService;
@@ -264,6 +271,24 @@ public class FranceConnectCertifierApp extends MVCApplication
         model.put( MARK_JSP_MYDASHBOARD, PROPERTY_JSP_MYDASHBOARD );
         
         return getXPage( TEMPLATE_RECERTIFICATE_OR_DELETE_CERTIFICATION, LocaleService.getDefault( ), model );
+    }
+    
+    
+    @View ( VIEW_HANDLE_ERROR  )
+    public XPage getViewHandleError ( HttpServletRequest request ) throws UserNotSignedException
+    {
+        Map<String, Object> model = getModel( );
+
+        String strError = request.getParameter( PARAMETER_ERROR );
+
+        LuteceUser user = checkUserAuthentication( request );
+        IdentityDto identity = CertifierService.getIdentity( user.getName( ) );
+        
+        model.put( MARK_USER, user );
+        model.put( MARK_ERROR, strError );
+        model.put( MARK_IDENTITY, identity );
+        
+        return getXPage( TEMPLATE_HANDLE_ERROR, request.getLocale( ), model );
     }
 
 }

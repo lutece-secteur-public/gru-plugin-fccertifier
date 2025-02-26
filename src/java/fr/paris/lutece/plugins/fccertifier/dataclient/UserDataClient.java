@@ -43,8 +43,10 @@ import fr.paris.lutece.plugins.oauth2.business.Token;
 import fr.paris.lutece.plugins.oauth2.dataclient.AbstractDataClient;
 import fr.paris.lutece.plugins.oauth2.modules.franceconnect.business.UserInfo;
 import fr.paris.lutece.plugins.oauth2.service.MapperService;
+import fr.paris.lutece.plugins.oauth2.web.Constants;
 import fr.paris.lutece.portal.service.util.AppLogService;
 import fr.paris.lutece.portal.service.util.AppPathService;
+import fr.paris.lutece.portal.service.util.AppPropertiesService;
 import fr.paris.lutece.portal.util.mvc.utils.MVCUtils;
 import fr.paris.lutece.util.url.UrlItem;
 
@@ -55,6 +57,7 @@ public class UserDataClient extends AbstractDataClient
 {
     public static final String ATTRIBUTE_USERINFO = "fccertifier-userinfo";
     private static final String XPAGE_NAME = "fccertifier";
+    private static final String PROPERTY_ERROR_PAGE = "fccertifier.certification.url.handle_error";
 
     /**
      * {@inheritDoc }
@@ -73,6 +76,25 @@ public class UserDataClient extends AbstractDataClient
         catch( IOException ex )
         {
             AppLogService.error( "Error DataClient User : " + ex.getMessage( ), ex );
+        }
+    }
+    
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    public void handleError( HttpServletRequest request, HttpServletResponse response, String strError )
+    {
+        try
+        {
+            UrlItem url = new UrlItem( AppPathService.getBaseUrl( request ) + AppPropertiesService.getProperty( PROPERTY_ERROR_PAGE ) );
+            url.addParameter( Constants.PARAMETER_ERROR, strError );
+            _logger.info( strError );
+            response.sendRedirect( url.getUrl( ) );
+        }
+        catch( IOException ex )
+        {
+            _logger.error( "Error redirecting to the error page : " + ex.getMessage( ), ex );
         }
     }
 

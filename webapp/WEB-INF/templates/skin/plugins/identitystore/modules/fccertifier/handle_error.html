@@ -1,0 +1,23 @@
+<@cContainer>
+	<@cBlock class='p-sm-3 forms'>
+		<@row>
+			<@cCol cols='lg-10 col-md-12 col-xs-12'>
+				<@cTitle level=2 class='main-info-color mb-5'>Certification France Connect</@cTitle>
+				<@cAlert title='' dismissible=false class='warning mb-xl'>
+					<@cText class='alert-title'>
+						Une erreur est survenue lors du processus de certification France Connect de votre compte.
+						Si le problème persiste, veuillez contacter la ville.
+					</@cText>
+				</@cAlert>
+				<@row>
+					<@cCol cols='12 col-lg-5 col-xl-5'>
+	                	<@fcBtnImg type='url' url='jsp/site/Portal.jsp?page=fccertifier&cid=${identity.customerId!}' label='Certifier mon compte avec' />
+					</@cCol>
+					<@cCol cols='12 col-lg-5 col-xl-5'>
+						<a href="https://sollicitations.paris.fr/ticketing/jsp/site/Portal.jsp?page=ticket" class="btn btn-primary"  target="_blank">Je contacte la Ville</a>						
+					</@cCol>
+				</@row>
+			</@cCol>
+		</@row>
+	</@cBlock>
+</@cContainer>
