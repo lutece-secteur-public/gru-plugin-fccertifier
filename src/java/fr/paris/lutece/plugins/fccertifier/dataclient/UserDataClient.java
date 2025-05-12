@@ -40,7 +40,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import fr.paris.lutece.plugins.fccertifier.web.FranceConnectCertifierApp;
 import fr.paris.lutece.plugins.oauth2.business.Token;
-import fr.paris.lutece.plugins.oauth2.dataclient.AbstractDataClient;
+import fr.paris.lutece.plugins.oauth2.dataclient.AbstractJWTDataClient;
 import fr.paris.lutece.plugins.oauth2.modules.franceconnect.business.UserInfo;
 import fr.paris.lutece.plugins.oauth2.service.MapperService;
 import fr.paris.lutece.portal.service.util.AppLogService;
@@ -51,7 +51,7 @@ import fr.paris.lutece.util.url.UrlItem;
 /**
  * UserDataClient
  */
-public class UserDataClient extends AbstractDataClient
+public class UserDataClient extends AbstractJWTDataClient
 {
     public static final String ATTRIBUTE_USERINFO = "fccertifier-userinfo";
     private static final String XPAGE_NAME = "fccertifier";
