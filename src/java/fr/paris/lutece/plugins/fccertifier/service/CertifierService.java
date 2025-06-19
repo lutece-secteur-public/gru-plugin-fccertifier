@@ -87,6 +87,7 @@ public class CertifierService implements Serializable
     private static final String MESSAGE_SESSION_EXPIRED = "module.identitystore.fccertifier.message.validation.sessionExpired";
     private static final String MESSAGE_CODE_EXPIRED = "module.identitystore.fccertifier.message.validation.codeExpired";
     private static final String MESSAGE_TOO_MANY_ATTEMPS = "module.identitystore.fccertifier.message.validation.tooManyAttempts";
+    private static final String MESSAGE_TECHNICAL_ERROR = "fccertifier.message.validation.technial_error";
     private static final String PROPERTY_EXPIRES_DELAY = "identitystore.fccertifier.expiresDelay";
     private static final String PROPERTY_MOCKED_EMAIL = "identitystore.fccertifier.mockedEmail";
     private static final String PROPERTY_MOCKED_CONNECTION_ID = "identitystore.fccertifier.mockedConnectionId";
@@ -147,10 +148,14 @@ public class CertifierService implements Serializable
     public ValidationResult validate( HttpServletRequest request, UserInfo userInfo )
     {
         HttpSession session = request.getSession( );
+        
+        ValidationResult validationResult = new ValidationResult( );
 
         if ( session == null )
         {
-            return ValidationResult.SESSION_EXPIRED;
+            validationResult.setValidationStatus( ValidationStatut.SESSION_EXPIRED );
+            
+            return validationResult;
         }
 
         String strKey = session.getId( );
@@ -158,7 +163,8 @@ public class CertifierService implements Serializable
 
         if ( infos == null )
         {
-            return ValidationResult.SESSION_EXPIRED;
+            validationResult.setValidationStatus( ValidationStatut.SESSION_EXPIRED);
+            return validationResult;
         }
 
         _mapValidationInfos.remove( strKey );
@@ -167,7 +173,7 @@ public class CertifierService implements Serializable
 
         certify( infos );
 
-        return ValidationResult.OK;
+        return infos.getValidationResult( );
     }
 
     /**
@@ -218,15 +224,32 @@ public class CertifierService implements Serializable
             
             try
             {   
-                
+                ValidationResult validationResult = new ValidationResult();
+
                 final IdentityChangeResponse response= identityService.updateIdentity( identityStore.getCustomerId(), identityChangeRequest, CLIENT_CODE,author);
                 if (response == null || (!ResponseStatusType.SUCCESS.equals(response.getStatus().getType()) && !ResponseStatusType.INCOMPLETE_SUCCESS.equals(response.getStatus().getType()))   )
                   {
                       AppLogService.error( "Error when  updating the identity for connectionId {} the idantity change status is {}, the identity response is {} ", identity.getConnectionId( ), response!=null? response.getStatus().getMessage():"",printJsonObjectAsString(response));
                       
+                      //Technical Errors
+                      if( response != null && response.getStatus( ) != null )
+                      {
+                          validationResult.setValidationStatus( ValidationStatut.TECHNICAL_ERROR );
+                          validationResult.setAttributeStatuses( response.getStatus( ).getAttributeStatuses( ) );
+                          validationResult.setListAttributes( listCertifiedAttribute );
+                          infos.setValidationResult( validationResult );
+
+                      }
+                      
                       throw new IdentityStoreException(response!=null ? response.getStatus().getType().name():"");
                   }
-                
+                else
+                {
+                    validationResult.setValidationStatus( ValidationStatut.OK );
+                    infos.setValidationResult( validationResult );
+
+                }
+                                
             } catch ( AppException | IdentityStoreException e )
             {
                 AppLogService.error( "Error updating identity for {}", infos.getUserConnectionId( ) ,e.getMessage( ));
@@ -359,10 +382,10 @@ public class CertifierService implements Serializable
     /**
      * Enumeration of all validation results
      */
-    public enum ValidationResult
+    public enum ValidationStatut
     {
         OK( MESSAGE_CODE_VALIDATION_OK ), INVALID_CODE( MESSAGE_CODE_VALIDATION_INVALID ), SESSION_EXPIRED( MESSAGE_SESSION_EXPIRED ), CODE_EXPIRED(
-                MESSAGE_CODE_EXPIRED ), TOO_MANY_ATTEMPS( MESSAGE_TOO_MANY_ATTEMPS );
+                MESSAGE_CODE_EXPIRED ), TOO_MANY_ATTEMPS( MESSAGE_TOO_MANY_ATTEMPS ), TECHNICAL_ERROR ( MESSAGE_TECHNICAL_ERROR ) ;
 
         private String _strMessageKey;
 
@@ -372,7 +395,7 @@ public class CertifierService implements Serializable
          * @param strMessageKey
          *            The i18n message key
          */
-        ValidationResult( String strMessageKey )
+        ValidationStatut( String strMessageKey )
         {
             _strMessageKey = strMessageKey;
         }
