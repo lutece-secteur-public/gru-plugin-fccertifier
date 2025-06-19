@@ -1,0 +1,27 @@
+<#function getAttributValue attributeKey >
+	<#if validationResult?? && validationResult.listAttributes??>
+		<#list validationResult.listAttributes as attribute >
+			<#if attribute.key == attributeKey>
+				<#return attribute.value>
+			</#if>
+		</#list>
+	</#if>
+	<#return ''>
+</#function>
+
+
+
+<div class="row">
+    <div class="col-md-8 col-md-offset-2">
+        <div class="alert alert-warning" role="alert">
+            <h1>#i18n{${validationResult.validationStatus.messageKey}}</h1>
+             <#if validationResult?? && validationResult.attributeStatuses??>
+             	<#list validationResult.attributeStatuses as attributeStatus>
+		             <br>
+		           	  Error code: ${(attributeStatus.status)!}  key: ${(attributeStatus.key)!}  value: ${getAttributValue(attributeStatus.key)}
+		             <br>
+	             </#list>
+             </#if>
+        </div>
+    </div>
+</div>

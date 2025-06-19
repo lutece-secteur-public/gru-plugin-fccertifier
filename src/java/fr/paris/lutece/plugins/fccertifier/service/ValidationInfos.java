@@ -47,6 +47,8 @@ public class ValidationInfos
     private FcIdentity _identity;
     private long _expiresTime;
     private int _nInvalidAttempts;
+    private ValidationResult _validationResult;
+    
 
     /**
      * Returns the FC FcIdentity
@@ -148,4 +150,21 @@ public class ValidationInfos
     {
         _nInvalidAttempts = nInvalidAttempts;
     }
+
+    /**
+     * @return the _validationResult
+     */
+    public ValidationResult getValidationResult( )
+    {
+        return _validationResult;
+    }
+
+    /**
+     * @param validationResult the _validationResult to set
+     */
+    public void setValidationResult( ValidationResult validationResult )
+    {
+        this._validationResult = validationResult;
+    }
+    
 }

@@ -42,7 +42,8 @@ import org.apache.commons.lang3.StringUtils;
 import fr.paris.lutece.plugins.fccertifier.business.FcIdentity;
 import fr.paris.lutece.plugins.fccertifier.dataclient.UserDataClient;
 import fr.paris.lutece.plugins.fccertifier.service.CertifierService;
-import fr.paris.lutece.plugins.fccertifier.service.CertifierService.ValidationResult;
+import fr.paris.lutece.plugins.fccertifier.service.CertifierService.ValidationStatut;
+import fr.paris.lutece.plugins.fccertifier.service.ValidationResult;
 import fr.paris.lutece.plugins.identitystore.v3.web.rs.dto.common.IdentityDto;
 import fr.paris.lutece.plugins.oauth2.modules.franceconnect.business.UserInfo;
 import fr.paris.lutece.plugins.oauth2.modules.franceconnect.business.service.FranceConnectService;
@@ -79,7 +80,8 @@ public class FranceConnectCertifierApp extends MVCApplication
     private static final String TEMPLATE_VALIDATION_OK = "skin/plugins/identitystore/modules/fccertifier/validation_ok.html";
     private static final String TEMPLATE_VALIDATE_DATA = "skin/plugins/identitystore/modules/fccertifier/validate_data.html";
     private static final String TEMPLATE_RECERTIFICATE_OR_DELETE_CERTIFICATION = "skin/plugins/identitystore/modules/fccertifier/recertify_or_delete_certification.html";    
-    
+    private static final String TEMPLATE_VALIDATION_ERROR = "skin/plugins/identitystore/modules/fccertifier/validation_error.html";
+
     //Actions
     private static final String ACTION_FETCH_FC_DATA = "fetch";
     private static final String ACTION_CERTIFY = "certify";
@@ -88,7 +90,8 @@ public class FranceConnectCertifierApp extends MVCApplication
     private static final String MARK_FC_INFOS = "fc_infos";
     private static final String MARK_IDENTITY = "identity";
     private static final String MARK_JSP_MYDASHBOARD = "jsp_mydashboard";
-    private static final String MARK_SERVICE_URL = "service_url";    
+    private static final String MARK_SERVICE_URL = "service_url";
+    private static final String MARK_VALIDATION_RESULT = "validationResult";
     //Properties
     private static final String PROPERTY_JSP_MYDASHBOARD = AppPropertiesService.getProperty( "fccertifier.mydashboard.identity.xpage" );
     private static final String PROPERTY_SUSPICIOUS_REDIRECT_PAGE = AppPropertiesService.getProperty( "fccertifier.identity.suspicious.france_connect.redirect.page" );
@@ -189,11 +192,19 @@ public class FranceConnectCertifierApp extends MVCApplication
         
         ValidationResult result = _certifierService.validate( request, fcUserInfo );
 
-        if ( result != ValidationResult.OK )
+        if ( result != null && result.getValidationStatus( ) != ValidationStatut.OK )
         {
-            addError( result.getMessageKey( ), LocaleService.getDefault( ) );
+            //technical errors
+            if( result.getValidationStatus( ) == ValidationStatut.TECHNICAL_ERROR )
+            {
+                Map<String,Object> model = getModel( );
+                model.put( MARK_VALIDATION_RESULT, result );
+                
+                return getXPage( TEMPLATE_VALIDATION_ERROR, LocaleService.getDefault( ), model );
+            }
+            addError( result.getValidationStatus( ).getMessageKey( ), LocaleService.getDefault( ) );
 
-            if ( result == ValidationResult.SESSION_EXPIRED )
+            if ( result.getValidationStatus( ) == ValidationStatut.SESSION_EXPIRED )
             {
                 return redirectView( request, VIEW_HOME );
             }
