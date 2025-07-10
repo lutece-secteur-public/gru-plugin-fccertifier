@@ -96,6 +96,8 @@ public class FranceConnectCertifierApp extends MVCApplication
     private static final String PROPERTY_JSP_MYDASHBOARD = AppPropertiesService.getProperty( "fccertifier.mydashboard.identity.xpage" );
     private static final String PROPERTY_SUSPICIOUS_REDIRECT_PAGE = AppPropertiesService.getProperty( "fccertifier.identity.suspicious.france_connect.redirect.page" );
     private static final String PROPERTY_SUSPICIOUS_REDIRECT_VIEW = AppPropertiesService.getProperty( "fccertifier.identity.suspicious.france_connect.redirect.view" );
+    //Parameters
+    private static final String PARAMETER_BIRTHPLACE = "birthplace";
     
     private static final String DATACLIENT_USER = "user";
     private static final String URL_SUSPICIOUS_IDENTITY = "Portal.jsp?page=" + PROPERTY_SUSPICIOUS_REDIRECT_PAGE + "&view=" + PROPERTY_SUSPICIOUS_REDIRECT_VIEW;
@@ -182,10 +184,20 @@ public class FranceConnectCertifierApp extends MVCApplication
     public XPage doCertify( HttpServletRequest request ) throws UserNotSignedException
     {
         LuteceUser user = checkUserAuthentication( request );
-        UserInfo fcUserInfo = (UserInfo) request.getSession( ).getAttribute( UserDataClient.ATTRIBUTE_USERINFO );        
+        UserInfo fcUserInfo = (UserInfo) request.getSession( ).getAttribute( UserDataClient.ATTRIBUTE_USERINFO );  
+                
+        //Recovery of the place of birth label for users born abroad.
+        String strBirthPlace = request.getParameter( PARAMETER_BIRTHPLACE );
+        FcIdentity fcIdentity = new FcIdentity( fcUserInfo );
+
+        if(StringUtils.isNotEmpty( strBirthPlace ))
+        {
+            CertifierService.setBirthplaceLabelInSession( strBirthPlace, request.getSession( ) );
+            fcIdentity.setIdsBirthPlace( strBirthPlace );
+        }    
         
         //Suspicious identity
-        if( CertifierService.existStrictSuspiciousIdentities( new FcIdentity( fcUserInfo ), user.getName( ) ) )
+        if( CertifierService.existStrictSuspiciousIdentities( fcIdentity, user.getName( ) ) )
         {
             return redirect( request, new UrlItem( URL_SUSPICIOUS_IDENTITY ).getUrl( ) );
         } 
