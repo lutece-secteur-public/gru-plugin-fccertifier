@@ -103,11 +103,11 @@ public class CertifierService implements Serializable
     private static final String CERTIFIER_CODE_DEFAULT = "DEC";
     private static final String BEAN_IDENTITY_QUALITY_SERVICE = "fccertifier.identityQualityService";
     private static final boolean PROPERTY_SUSPICIOUS_IDENTITY_ACTIVATION_INDICATEUR = AppPropertiesService.getPropertyBoolean( "mydashboard.identity.suspicious.activation_indicator", false );
-    private static final String PROPERTY_SUSPICIOUS_LIST_RULE_STRIC = AppPropertiesService.getProperty( "mydashboard.identity.suspicious.identity.list_code_rule.strict", "RG_GEN_StrictDoublon_01" );
     private static final String PROPERTY_SUSPICIOUS_LIST_RULE_NOT_STRIC = AppPropertiesService.getProperty( "mydashboard.identity.suspicious.identity.list_code_rule.not_strict",
             "RG_GEN_SuspectDoublon_09" );   
     private static final String CLIENT_CODE = AppPropertiesService.getProperty( PROPERTY_IDENTITY_SERVICE_CLIENT_CODE );
-
+    private static final String SESSION_BIRTPLACE_LABEL = "birthplace_label";
+    
     private static Map<String, ValidationInfos> _mapValidationInfos = new ConcurrentHashMap<String, ValidationInfos>( );
     private static ObjectMapper _mapper;
     static
@@ -168,8 +168,17 @@ public class CertifierService implements Serializable
         }
 
         _mapValidationInfos.remove( strKey );
+        
+        //Retrieve the session birthplace
+        String strBirthPlace = getBirthplaceLabelInSession( session );
+        FcIdentity fcIdentity = new FcIdentity( userInfo );
 
-        infos.setFCUserInfo( new FcIdentity( userInfo ) );
+        if(StringUtils.isNotEmpty( strBirthPlace ))
+        {
+            fcIdentity.setIdsBirthPlace( strBirthPlace );
+        }
+
+        infos.setFCUserInfo( fcIdentity );
 
         certify( infos );
 
@@ -212,6 +221,10 @@ public class CertifierService implements Serializable
             addCertificateAttribute("family_name", user.getFamilyName( ) ,date ,listCertifiedAttribute );
             addCertificateAttribute("preferred_username", user.getPreferredUsername() ,date ,listCertifiedAttribute );
           
+            if( StringUtils.isEmpty( user.getBirthPlace( ) ) && StringUtils.isNotEmpty( user.getIdsBirthPlace( ) ) )
+            {
+                addCertificateAttribute("birthplace", user.getIdsBirthPlace( ),date ,true,listCertifiedAttribute );
+            }
             identity.setAttributes( listCertifiedAttribute );
     
             
@@ -507,6 +520,11 @@ public class CertifierService implements Serializable
             mapAttributes.put( "birthplace_code", fcIdentity.getBirthPlace( ) );
         }
         
+        if( StringUtils.isEmpty( fcIdentity.getBirthPlace( ) ) &&  StringUtils.isNotEmpty( fcIdentity.getIdsBirthPlace( ) ) )
+        {
+            mapAttributes.put( "birthplace", fcIdentity.getIdsBirthPlace( ) );
+        }
+        
         if( StringUtils.isNotEmpty( fcIdentity.getFamilyName( ) ) )
         {
             mapAttributes.put( "family_name", fcIdentity.getFamilyName( ) );
@@ -562,6 +580,34 @@ public class CertifierService implements Serializable
 			}
 		}
     	return "";
+    }
+    
+    /**
+     * Set birthplace label in session
+     * @param strBirthplace
+     * @param session
+     */
+    public static void setBirthplaceLabelInSession ( String strBirthplace, HttpSession session )
+    {
+        if( StringUtils.isNotEmpty( strBirthplace ) )
+        {
+            session.setAttribute( SESSION_BIRTPLACE_LABEL, strBirthplace );
+        }
+    }
+    
+    /**
+     * Get birthplace label in session
+     * @param session
+     * @return
+     */
+    public static String getBirthplaceLabelInSession ( HttpSession session )
+    {
+        if( session != null )
+        {
+            return ( String ) session.getAttribute( SESSION_BIRTPLACE_LABEL );
+        }
+        
+        return StringUtils.EMPTY;
     }
     
 }
