@@ -233,27 +233,15 @@ public class CertifierService implements Serializable
             author.setType( AuthorType.application );
            
             identityChangeRequest.setIdentity( identity );
-           
+            ValidationResult validationResult = new ValidationResult();
+            IdentityChangeResponse response = null;
             
             try
             {   
-                ValidationResult validationResult = new ValidationResult();
-
-                final IdentityChangeResponse response= identityService.updateIdentity( identityStore.getCustomerId(), identityChangeRequest, CLIENT_CODE,author);
+                response= identityService.updateIdentity( identityStore.getCustomerId(), identityChangeRequest, CLIENT_CODE,author);
                 if (response == null || (!ResponseStatusType.SUCCESS.equals(response.getStatus().getType()) && !ResponseStatusType.INCOMPLETE_SUCCESS.equals(response.getStatus().getType()))   )
                   {
-                      AppLogService.error( "Error when  updating the identity for connectionId {} the idantity change status is {}, the identity response is {} ", identity.getConnectionId( ), response!=null? response.getStatus().getMessage():"",printJsonObjectAsString(response));
-                      
-                      //Technical Errors
-                      if( response != null && response.getStatus( ) != null )
-                      {
-                          validationResult.setValidationStatus( ValidationStatut.TECHNICAL_ERROR );
-                          validationResult.setAttributeStatuses( response.getStatus( ).getAttributeStatuses( ) );
-                          validationResult.setListAttributes( listCertifiedAttribute );
-                          infos.setValidationResult( validationResult );
-
-                      }
-                      
+                      AppLogService.error( "Error when  updating the identity for connectionId {} the idantity change status is {}, the identity response is {} ", identity.getConnectionId( ), response!=null? response.getStatus().getMessage():"",printJsonObjectAsString(response)); 
                       throw new IdentityStoreException(response!=null ? response.getStatus().getType().name():"");
                   }
                 else
@@ -266,6 +254,15 @@ public class CertifierService implements Serializable
             } catch ( AppException | IdentityStoreException e )
             {
                 AppLogService.error( "Error updating identity for {}", infos.getUserConnectionId( ) ,e.getMessage( ));
+                //Technical Errors
+                validationResult.setValidationStatus( ValidationStatut.TECHNICAL_ERROR );
+
+                if( response != null && response.getStatus( ) != null )
+                {
+                    validationResult.setAttributeStatuses( response.getStatus( ).getAttributeStatuses( ) );
+                    validationResult.setListAttributes( listCertifiedAttribute );
+                }
+                infos.setValidationResult( validationResult );
             }
             //get Certifier Listener
             List<ICertifierListener> listCertifyListener=SpringContextService.getBeansOfType(ICertifierListener.class);
